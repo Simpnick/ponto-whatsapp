@@ -1,0 +1,14 @@
+{
+  "name": "ponto-whatsapp",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@wppconnect/wa-js": "4.7.2"
+  }
+}
