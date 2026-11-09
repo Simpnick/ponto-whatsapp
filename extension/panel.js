@@ -8,14 +8,17 @@
   const host = document.createElement('div');
   host.dataset.pontoPanel = '';
   const root = host.attachShadow({ mode: 'closed' });
-  const { parseContacts, personalize, runQueue } = globalThis.PontoWorkflow;
+  const { parseContacts, personalize, runQueue, csvText } = globalThis.PontoWorkflow;
+  const { groupId, readRich } = globalThis.PontoRich;
   globalThis.createPontoView(root);
   const controls = Object.fromEntries([...root.querySelectorAll('[id]')].map((element) => [element.id, element]));
   const attachments = [];
+  const log = [];
   let parsed = parseContacts('');
   let snapshot;
   let controller;
   let completed = 0;
+  let confirmed = 0;
 
   globalThis.pontoPanel = { host, toggle: () => { if (!controller) host.hidden = !host.hidden; } };
   (document.body ?? document.documentElement).append(host);
@@ -24,12 +27,15 @@
     adapter: 'O WPPConnect não ficou pronto. Recarregue o WhatsApp Web e confira a compatibilidade.',
     conflict: 'Já existe outra versão do WPPConnect nesta página. Desative a outra extensão e recarregue.',
     login: 'Entre na sua conta no WhatsApp Web antes de enviar.',
-    recipient: 'O telefone precisa incluir o código do país e o DDD.',
+    recipient: 'Use um telefone internacional ou um ID de grupo válido.',
     busy: 'Um envio anterior ainda está em andamento.',
     file: 'Falha ao preparar o arquivo. Confira o acesso ao arquivo e tente em um novo lote.',
     bridge: 'O painel perdeu contato com o WhatsApp Web.',
     mediaLimit: 'O arquivo excede o tamanho aceito pelo WhatsApp para esse formato.',
-    unconfirmed: 'O WhatsApp não confirmou este item.'
+    unconfirmed: 'O WhatsApp não confirmou este item.',
+    unsupported: 'Esta versão do WhatsApp Web não disponibilizou um dos tipos de mensagem selecionados.',
+    invite: 'Não foi possível consultar o convite. Confira o ID e suas permissões no grupo.',
+    contactSource: 'Não foi possível consultar a fonte de contatos selecionada.'
   };
 
   function report(message, error = false) {
@@ -45,10 +51,15 @@
       throw new Error(reasons.bridge);
     }
     if (!response?.ok) throw new Error(reasons[response?.reason] ?? reasons.bridge);
+    return response.data;
   }
 
   async function sendItem(item, signal) {
     const { phone } = item.contact;
+    if (item.rich) {
+      await request('rich', { phone, kind: item.rich.kind, data: item.rich.data });
+      return;
+    }
     if (!item.file) {
       await request('text', { phone, text: item.text });
       return;
@@ -74,7 +85,7 @@
 
   function updatePreview() {
     try {
-      parsed = parseContacts(controls.contacts.value);
+      parsed = parseContacts(controls.contacts.value, { allowGroups: true });
       const { contacts, duplicates, invalid } = parsed;
       const details = [`${contacts.length} contato(s) válido(s)`];
       if (duplicates) details.push(`${duplicates} duplicado(s) ignorado(s)`);
@@ -92,6 +103,7 @@
 
   function renderAttachments() {
     controls['file-count'].textContent = `${attachments.length} ${attachments.length === 1 ? 'arquivo' : 'arquivos'}`;
+    controls['clear-files'].hidden = !attachments.length;
     const list = controls.attachments;
     list.replaceChildren();
     for (const entry of attachments) {
@@ -127,7 +139,39 @@
       checkbox.checked = entry.asDocument;
       checkbox.addEventListener('change', () => { entry.asDocument = checkbox.checked; });
       mode.append(checkbox, 'Enviar como documento');
-      row.append(name, size, remove);
+      row.append(name, size);
+      if (/^image\/(png|jpeg|webp|gif|bmp)$/.test(entry.file.type)) {
+        const preview = document.createElement('button');
+        preview.textContent = 'Prévia';
+        preview.setAttribute('aria-label', `Visualizar ${entry.file.name}`);
+        preview.addEventListener('click', async () => {
+          const previous = li.querySelector('canvas');
+          if (previous) return previous.remove();
+          preview.disabled = true;
+          try {
+            const image = await createImageBitmap(entry.file);
+            const canvas = document.createElement('canvas');
+            const ratio = Math.min(1, 200 / image.width, 110 / image.height);
+            canvas.width = Math.max(1, Math.round(image.width * ratio));
+            canvas.height = Math.max(1, Math.round(image.height * ratio));
+            canvas.className = 'thumbnail';
+            canvas.setAttribute('role', 'img');
+            canvas.setAttribute('aria-label', entry.file.name);
+            try {
+              canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+              li.append(canvas);
+            } finally {
+              image.close();
+            }
+          } catch {
+            report('Não foi possível abrir a prévia deste arquivo.', true);
+          } finally {
+            preview.disabled = false;
+          }
+        });
+        row.append(preview);
+      }
+      row.append(remove);
       li.append(row, caption, mode);
       list.append(li);
     }
@@ -157,26 +201,67 @@
     const { contacts } = parsed;
     const text = controls.message.value.trim();
     if (!contacts.length) return report('Adicione pelo menos um destinatário válido.', true);
-    if (!text && !attachments.length) return report('Escreva uma mensagem ou adicione arquivos.', true);
+    let rich;
+    try {
+      rich = readRich(root);
+    } catch (error) {
+      return report(error.message, true);
+    }
+    if (!text && !attachments.length && !rich.length) return report('Adicione texto, arquivos ou uma mensagem especial.', true);
+    if (rich.some(({ kind }) => kind === 'poll') && contacts.some(({ phone }) => !phone.endsWith('@g.us'))) {
+      return report('O envio de enquete pelo WPPConnect aceita apenas grupos. Revise os destinatários.', true);
+    }
     if (text && contacts.some((contact) => !personalize(text, contact).trim())) {
       return report('A mensagem fica vazia para algum destinatário. Confira os campos de personalização.', true);
     }
 
-    snapshot = { contacts, text, attachments: attachments.map((entry) => ({ ...entry })),
-      total: contacts.length * (Number(!!text) + attachments.length) };
+    const min = controls['delay-min'].valueAsNumber;
+    const max = controls['delay-max'].valueAsNumber;
+    if (![min, max].every((value) => Number.isInteger(value) && value >= 0 && value <= 3600) || min > max) {
+      return report('Informe um intervalo inteiro de 0 a 3600 segundos, com máximo igual ou maior que o mínimo.', true);
+    }
+
+    snapshot = { contacts, text, rich, delay: { min, max }, continueOnError: controls['continue-on-error'].checked,
+      attachments: attachments.map((entry) => ({ ...entry })),
+      total: contacts.length * (Number(!!text) + attachments.length + rich.length) };
     completed = 0;
+    confirmed = 0;
     controls.draft.disabled = true;
     controls.prepare.hidden = true;
     controls.progress.hidden = true;
     controls.consent.checked = false;
     controls.send.disabled = true;
     controls.summary.textContent = `${snapshot.total} item(ns) para ${contacts.length} destinatário(s).`;
-    const sample = contacts.slice(0, 4).map(({ name, phone }) => name ? `${name} (+${phone})` : `+${phone}`);
+    const sample = contacts.slice(0, 4).map(({ name, phone }) => name ? `${name} (${displayRecipient(phone)})` : displayRecipient(phone));
     if (contacts.length > sample.length) sample.push(`e mais ${contacts.length - sample.length}`);
     controls['recipient-preview'].textContent = sample.join(' · ');
     controls.review.hidden = false;
     controls.consent.focus();
     report('Confira a lista e confirme o envio.');
+  }
+
+  function displayRecipient(phone) {
+    return phone.endsWith('@g.us') ? phone : `+${phone}`;
+  }
+
+  function downloadCsv(filename, rows) {
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csvText(rows)], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
+  function logItem(item, status, detail = '') {
+    const { phone, name } = item.contact;
+    log.push([new Date().toISOString(), name, phone, item.label, status, detail]);
+    const row = document.createElement('li');
+    row.textContent = `${displayRecipient(phone)} · ${item.label} · ${status}`;
+    const list = controls['report-items'];
+    list.prepend(row);
+    if (list.childElementCount > 12) list.lastElementChild.remove();
+    controls['report-panel'].hidden = false;
   }
 
   function resetReview() {
@@ -205,18 +290,31 @@
     try {
       const outcome = await navigator.locks.request('ponto-whatsapp-batch', { ifAvailable: true }, async (lock) => {
         if (!lock) throw new Error('Já existe um lote em execução em outra aba.');
-        await request('prepare');
+        await request('prepare', { richKinds: snapshot.rich.map(({ kind }) => kind) });
+        if (!snapshot.started && !controller.signal.aborted) {
+          log.length = 0;
+          controls['report-items'].replaceChildren();
+          controls['report-panel'].hidden = true;
+          snapshot.started = true;
+        }
         return runQueue(snapshot, { startAt: completed, signal: controller.signal, send: sendItem,
           onProgress: (event, item, index, error) => {
-            const detail = `${index}/${snapshot.total} · +${item.contact.phone} · ${item.label}`;
+            const detail = `${index}/${snapshot.total} · ${displayRecipient(item.contact.phone)} · ${item.label}`;
+            if (event === 'waiting') report(`Aguardando o intervalo antes de ${displayRecipient(item.contact.phone)}.`);
             if (event === 'sending') report(`Processando ${detail}`);
             if (event === 'confirmed') {
               completed = index;
+              confirmed++;
               controls.progress.value = completed;
+              logItem(item, 'Confirmado');
               report(`WhatsApp confirmou ${detail}`);
             }
             if (event === 'failed') {
-              report(`Fila interrompida em ${detail}. ${completed} confirmado(s). ${error.message} Confira a conversa antes de iniciar outro lote.`, true);
+              completed = index;
+              controls.progress.value = completed;
+              logItem(item, 'Falha', error.message);
+              const prefix = snapshot.continueOnError ? 'Falha em' : 'Fila interrompida em';
+              report(`${prefix} ${detail}. ${confirmed} confirmado(s). ${error.message} Confira a conversa antes de reenviar.`, true);
             }
           }
         });
@@ -224,9 +322,12 @@
       if (outcome.status === 'stopped') {
         controls.resume.hidden = false;
         controls.discard.hidden = false;
-        report(`Lote pausado. ${completed} de ${snapshot.total} item(ns) confirmados.`);
+        report(`Lote pausado. ${confirmed} confirmado(s) e ${completed - confirmed} falha(s) de ${snapshot.total} item(ns).`);
       } else {
-        if (outcome.status === 'done') report(`WhatsApp confirmou ${completed} de ${snapshot.total} item(ns).`);
+        if (outcome.status === 'done') {
+          const failed = completed - confirmed;
+          report(`WhatsApp confirmou ${confirmed} de ${snapshot.total} item(ns).${failed ? ` ${failed} falha(s) no relatório.` : ''}`, !!failed);
+        }
         resetReview();
       }
     } catch (error) {
@@ -245,6 +346,50 @@
   }
 
   controls.close.addEventListener('click', () => { host.hidden = true; });
+  for (const mode of ['cloud', 'voice']) {
+    controls[`open-${mode}`].addEventListener('click', async (event) => {
+      if (!event.isTrusted) return;
+      try {
+        await request('openMode', { mode });
+      } catch (error) {
+        report(error.message, true);
+      }
+    });
+  }
+  controls['csv-model'].addEventListener('click', () => downloadCsv('ponto-contatos.csv', [
+    ['nome', 'telefone', 'cidade'], ['Ana', '5511900000000', 'Recife']
+  ]));
+  controls.emoji.addEventListener('change', () => {
+    const { value } = controls.emoji;
+    if (!value) return;
+    const input = controls.message;
+    input.setRangeText(value, input.selectionStart, input.selectionEnd, 'end');
+    controls.emoji.value = '';
+    input.focus();
+    updatePreview();
+  });
+  controls['invite-fetch'].addEventListener('click', async (event) => {
+    if (!event.isTrusted) return;
+    const input = controls['invite-group'];
+    const before = input.value;
+    const id = groupId(before.trim());
+    if (!id) return report('Informe um ID de grupo válido.', true);
+    controls['invite-fetch'].disabled = true;
+    try {
+      await request('prepare');
+      const code = await request('groupInviteCode', { groupId: id });
+      if (input.value !== before || controls.draft.disabled) return;
+      controls['invite-code'].value = code;
+      report('Código do convite consultado.');
+    } catch (error) {
+      report(error.message, true);
+    } finally {
+      controls['invite-fetch'].disabled = false;
+    }
+  });
+  controls['download-report'].addEventListener('click', () => downloadCsv('ponto-relatorio.csv', [
+    ['Data UTC', 'Nome', 'Destinatário', 'Item', 'Status', 'Detalhe'], ...log
+  ]));
   controls.contacts.addEventListener('input', updatePreview);
   controls.message.addEventListener('input', updatePreview);
   controls.import.addEventListener('click', () => controls.csv.click());
@@ -256,7 +401,7 @@
     try {
       const content = await file.text();
       if (controls.draft.disabled || controls.contacts.value !== before) return;
-      parseContacts(content);
+      parseContacts(content, { allowGroups: true });
       controls.contacts.value = content;
       updatePreview();
       report('Lista importada. Revise os telefones antes de enviar.');
@@ -265,6 +410,12 @@
     }
   });
   controls['add-files'].addEventListener('click', () => controls.files.click());
+  controls['clear-files'].addEventListener('click', () => {
+    attachments.length = 0;
+    renderAttachments();
+    controls['add-files'].focus();
+    report('Fila de anexos limpa.');
+  });
   controls.files.addEventListener('change', () => {
     addFiles(controls.files.files);
     controls.files.value = '';
@@ -297,7 +448,8 @@
   controls.resume.addEventListener('click', (event) => { if (event.isTrusted) void start(); });
   controls.discard.addEventListener('click', () => {
     resetReview();
-    report(`Lote encerrado com ${completed} item(ns) confirmados.`);
+    report(`Lote encerrado com ${confirmed} confirmado(s) e ${completed - confirmed} falha(s).`);
   });
+  globalThis.setupPontoContacts({ root, request, updatePreview, report });
   updatePreview();
 })();

@@ -1,10 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Ponto para WhatsApp Web",
-  "version": "0.1.0",
-  "description": "Personalize mensagens e organize anexos para os seus contatos.",
+  "version": "0.2.0",
+  "description": "Gerencie contatos, mensagens, anexos e ligações para WhatsApp.",
   "minimum_chrome_version": "140",
   "permissions": ["activeTab", "scripting"],
+  "optional_host_permissions": ["https://graph.facebook.com/*", "https://devices.wavoip.com/*"],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'"
+  },
   "action": { "default_title": "Abrir Ponto no WhatsApp Web" },
   "background": { "service_worker": "background.js", "type": "module" },
   "commands": {

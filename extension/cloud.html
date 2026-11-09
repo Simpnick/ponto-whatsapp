@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API oficial · Ponto</title>
+  <link rel="stylesheet" href="cloud.css">
+  <script src="workflow.js" defer></script>
+  <script src="cloud.js" type="module"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <p class="brand">PONTO / WHATSAPP BUSINESS</p>
+      <h1>API oficial</h1>
+      <p>Gerencie templates e envie mensagens pela conta comercial da Meta.</p>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="card" aria-labelledby="connection-title">
+      <div class="heading"><h2 id="connection-title">Conexão</h2><span class="badge" id="connection-badge">Desconectado</span></div>
+      <form id="connect-form" autocomplete="off">
+        <div class="credentials">
+          <label>Token de acesso<input name="token" type="password" required autocomplete="off" spellcheck="false"></label>
+          <label>ID da conta WABA<input name="wabaId" required inputmode="numeric" pattern="[0-9]+"></label>
+          <label>Versão Graph<input name="version" value="v25.0" required pattern="v[0-9]+\.[0-9]+" spellcheck="false"></label>
+        </div>
+        <p class="muted">Use um token com permissões de gerenciamento e mensagens do WhatsApp Business. Ele fica na memória desta aba durante a conexão.</p>
+        <button type="submit" class="primary">Conectar à Meta</button>
+      </form>
+      <div id="connected" hidden>
+        <label for="sender">Número remetente</label><select id="sender"></select>
+        <div class="actions"><button id="disconnect">Desconectar</button><a href="https://business.facebook.com/latest/billing_hub/payment_methods/" target="_blank" rel="noopener noreferrer">Formas de pagamento da Meta</a></div>
+        <details><summary>Dados da conta e dos números</summary><div id="account"></div></details>
+      </div>
+      <p id="connect-status" class="status" role="status"></p>
+    </section>
+
+    <div id="workspace" class="workspace" hidden>
+      <section class="card compose" aria-labelledby="compose-title">
+        <div class="heading"><h2 id="compose-title">Mensagens</h2><span class="badge">Cloud API</span></div>
+        <form id="message-form">
+          <fieldset id="draft">
+            <legend class="sr-only">Preparar lote</legend>
+            <label>Tipo de envio<select id="send-mode"><option value="template">Template aprovado</option><option value="free">Texto e mídia</option></select></label>
+            <div id="template-message">
+              <label>Template<select id="send-template"></select></label>
+              <div id="template-params" class="param-list"></div>
+            </div>
+            <div id="free-message" hidden>
+              <label>Texto <textarea id="message-text" rows="4" placeholder="Olá, [nome]!"></textarea></label>
+              <div id="drop-zone" class="drop">
+                <label>Adicionar anexos <input id="media-files" type="file" multiple></label>
+                <span class="muted">Também pode arrastar os arquivos para cá.</span>
+              </div>
+              <ul class="files" id="media-list"></ul>
+              <p class="muted">Texto e mídia avulsa dependem da janela de atendimento de 24 horas da Meta.</p>
+            </div>
+            <p class="muted">Use [nome], [telefone] ou [field3] para personalizar o texto, a legenda ou os parâmetros do template.</p>
+            <label>Destinatários<textarea id="recipients" rows="5" placeholder="nome;telefone&#10;Ana;5511900000000"></textarea></label>
+            <div class="actions">
+              <label class="button file-button">Importar CSV<input id="recipients-csv" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" class="sr-only"></label>
+              <button type="button" id="import-wa">Importar conversas do WhatsApp</button>
+              <label class="check"><input id="recent-only" type="checkbox"> Atividade nas últimas 24 horas</label>
+            </div>
+            <div class="fields interval">
+              <label>Intervalo mínimo (s)<input id="delay-min" type="number" min="0" max="900" value="2" required></label>
+              <label>Intervalo máximo (s)<input id="delay-max" type="number" min="0" max="900" value="10" required></label>
+            </div>
+            <button type="submit" class="primary" id="review">Revisar envio</button>
+          </fieldset>
+        </form>
+        <div class="queue">
+          <progress id="progress" aria-label="Progresso do lote" hidden></progress>
+          <p id="send-status" class="status" role="status"></p>
+          <div class="actions">
+            <button id="pause" hidden>Pausar</button><button id="resume" hidden>Retomar</button><button id="stop" hidden>Encerrar lote</button>
+            <button id="log-download" hidden>Baixar relatório CSV</button>
+          </div>
+          <div class="table-wrap" id="log-table" hidden>
+            <table><thead><tr><th>Destino</th><th>Item</th><th>Resultado</th></tr></thead><tbody id="log-rows"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <div class="side">
+        <section class="card" aria-labelledby="templates-title">
+          <div class="heading"><h2 id="templates-title">Templates</h2><button id="refresh-templates">Atualizar</button></div>
+          <label>Pesquisar<input id="template-search" type="search" placeholder="Nome, idioma ou status"></label>
+          <div id="template-list" class="templates" aria-live="polite"></div>
+          <div id="template-detail" hidden>
+            <div id="template-details-text"></div>
+            <div class="actions"><button id="choose-template">Usar no envio</button><button id="edit-template">Editar</button><button id="delete-template" class="danger">Excluir</button></div>
+          </div>
+          <details id="template-editor">
+            <summary id="editor-title">Criar template</summary>
+            <form id="template-form">
+              <div class="fields">
+                <label>Nome<input name="name" required pattern="[a-z0-9_]+" placeholder="boas_vindas"></label>
+                <label>Idioma<input name="language" required value="pt_BR" pattern="[a-z]{2,3}(_[A-Z]{2})?"></label>
+              </div>
+              <label>Categoria<select name="category" id="category"><option value="UTILITY">Utilidade</option><option value="MARKETING">Marketing</option><option value="AUTHENTICATION">Autenticação</option></select></label>
+              <div id="otp-form" hidden><label class="check"><input name="security" type="checkbox" checked> Mostrar recomendação de segurança</label>
+                <label>Validade do código (minutos, opcional)<input name="expiry" type="number" min="1" max="90"></label></div>
+              <div id="standard-form">
+                <label>Cabeçalho<select name="headerFormat" id="header-format"><option value="">Sem cabeçalho</option><option value="TEXT">Texto</option><option value="IMAGE">Imagem</option><option value="VIDEO">Vídeo</option><option value="DOCUMENT">Documento</option></select></label>
+                <div id="editor-header-text" hidden>
+                  <label>Texto do cabeçalho<input name="headerText"></label>
+                  <label>Exemplo da variável do cabeçalho<input name="headerExample"></label>
+                </div>
+                <div id="editor-header-media" hidden>
+                  <label>Identificador de exemplo da Meta<input name="headerHandle" placeholder="4::…"></label>
+                  <p class="muted">Cole um identificador de upload ou envie um arquivo com o ID do aplicativo Meta.</p>
+                  <label>ID do aplicativo Meta<input name="appId" inputmode="numeric"></label>
+                  <label>Arquivo de exemplo<input id="header-file" type="file"></label>
+                </div>
+                <label>Corpo<textarea name="body" rows="3" placeholder="Olá, {{1}}!"></textarea></label>
+                <label>Exemplos dos parâmetros, um por linha<textarea name="bodyExamples" rows="2" placeholder="Ana"></textarea></label>
+                <label>Rodapé<input name="footer"></label>
+                <div class="button-editor" id="template-buttons"></div>
+                <button type="button" id="add-template-button">Adicionar botão</button>
+              </div>
+              <div class="actions"><button type="submit" class="primary">Enviar para a Meta</button><button type="button" id="reset-editor" hidden>Novo template</button></div>
+            </form>
+          </details>
+          <p id="templates-status" class="status" role="status"></p>
+        </section>
+
+        <section class="card" aria-labelledby="analytics-title">
+          <h2 id="analytics-title">Analytics de templates</h2>
+          <form id="analytics-form">
+            <label>Template<select id="analytics-template"></select></label>
+            <div class="fields">
+              <label>Início (UTC)<input id="analytics-start" type="date" required></label>
+              <label>Fim (UTC)<input id="analytics-end" type="date" required></label>
+            </div>
+            <button type="submit">Consultar métricas</button>
+          </form>
+          <div id="analytics-result" role="status"></div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="review-dialog" aria-labelledby="review-title">
+    <h2 id="review-title">Confirmar destinatários</h2>
+    <p id="review-summary"></p>
+    <p class="muted" id="review-contacts"></p>
+    <label class="check"><input type="checkbox" id="send-consent"> Tenho autorização dos destinatários para enviar estas mensagens.</label>
+    <div class="actions"><button id="confirm-send" class="primary" disabled>Iniciar lote</button><button id="cancel-review">Voltar</button></div>
+  </dialog>
+  <dialog id="delete-dialog" aria-labelledby="delete-title">
+    <h2 id="delete-title">Excluir template</h2>
+    <p id="delete-summary"></p>
+    <div class="actions"><button id="confirm-delete" class="danger">Excluir na Meta</button><button id="cancel-delete">Cancelar</button></div>
+  </dialog>
+</body>
+</html>

@@ -1,4 +1,5 @@
 import { copyFile, cp, mkdir } from 'node:fs/promises';
+import { buildVoice } from './build-voice.mjs';
 
 const root = new URL('../', import.meta.url);
 const output = new URL('dist/', root);
@@ -11,4 +12,5 @@ await copyFile(new URL('LICENSE', root), new URL('LICENSE', output));
 await copyFile(new URL('dist/wppconnect-wa.js', upstream), new URL('wppconnect-wa.js', vendor));
 await copyFile(new URL('dist/wppconnect-wa.js.LICENSE.txt', upstream), new URL('wppconnect-wa.js.LICENSE.txt', vendor));
 await copyFile(new URL('LICENSE', upstream), new URL('LICENSE', vendor));
+await buildVoice(root, output);
 console.log('Extensão pronta em dist/.');

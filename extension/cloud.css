@@ -1,0 +1,64 @@
+:root { color-scheme: light; color: #142c24; background: #eef4ef; font: 15px/1.55 system-ui, sans-serif; }
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+.wrap { width: min(1120px, calc(100% - 36px)); margin-inline: auto; }
+.hero { background: #15392f; color: #f6fffa; padding: 30px 0; }
+.brand { color: #c2f5d8; font-size: 12px; font-weight: 750; letter-spacing: .14em; }
+h1 { font-size: clamp(30px, 4vw, 48px); line-height: 1.15; letter-spacing: -.04em; margin: 5px 0; }
+h2 { font-size: 20px; margin: 0 0 8px; letter-spacing: -.025em; }
+.hero p { margin: 0; }
+main { padding: 18px 0 30px; }
+.card { background: #fff; border: 1px solid #dce8e0; border-radius: 14px; padding: 17px; min-width: 0; }
+.heading, .actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.heading { justify-content: space-between; margin-bottom: 8px; }
+.heading h2 { margin: 0; }
+.workspace { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; align-items: start; margin-top: 14px; }
+.side, form, fieldset, .param-list, .button-editor { display: grid; gap: 10px; }
+fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.fields, .credentials { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.credentials { grid-template-columns: 2fr 1fr minmax(95px, .55fr); }
+label { display: block; font-size: 13px; font-weight: 650; }
+input:not([type=checkbox], .sr-only), select, textarea { width: 100%; min-width: 0; font: inherit; margin: 3px 0 0;
+  padding: 7px 9px; border-radius: 7px; border: 1px solid #c6d8ce; background: #fbfdfb; color: #142c24; }
+textarea { resize: vertical; }
+.check { display: flex; align-items: baseline; gap: 6px; font-weight: 500; }
+.check input, progress { accent-color: #146542; }
+.muted { color: #496259; font-size: 13px; margin: 0; }
+button, .button { justify-self: start; border: 1px solid #c8dfd1; color: #174735; background: #eaf4ee;
+  border-radius: 8px; padding: 7px 10px; font: 700 13px/1.4 system-ui, sans-serif; cursor: pointer; }
+button:hover:not(:disabled), .button:hover { background: #dceee3; }
+button:disabled { opacity: .55; cursor: default; }
+.file-button:focus-within, :focus-visible { outline: 2px solid #168754; outline-offset: 2px; }
+.primary { color: #fff; background: #146542; border-color: #146542; }
+.primary:hover:not(:disabled) { background: #104e34; }
+.danger { color: #8a2726; border-color: #ebc1bf; background: #fff2ef; }
+.danger:hover:not(:disabled) { background: #ffe4df; }
+.badge { background: #e6f3ec; color: #235442; border-radius: 20px; padding: 3px 8px; font-size: 12px; font-weight: 650; }
+a { color: #18593e; }
+summary { cursor: pointer; font-weight: 700; margin: 9px 0; }
+.drop { border: 1px dashed #8bb8a1; background: #f5fbf7; border-radius: 8px; padding: 9px; margin: 8px 0 0; }
+.drop.drag { background: #dceee3; }
+.files { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow: auto; }
+.files li, .template-item, .button-row { border-bottom: 1px solid #dee8e2; padding: 8px 0; overflow-wrap: anywhere; }
+.templates { max-height: 300px; overflow: auto; margin-bottom: 9px; }
+.template-item { display: flex; gap: 7px; justify-content: space-between; align-items: baseline; }
+.button-row { display: grid; gap: 5px; grid-template-columns: 1fr 1fr; }
+.status { color: #31594a; min-height: 1em; overflow-wrap: anywhere; margin: 7px 0; }
+.status[data-error] { color: #9a2924; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; font-size: 13px; }
+dt { font-weight: 700; }
+dd { margin: 0; overflow-wrap: anywhere; }
+#connected .actions, #template-form .actions { margin-top: 8px; }
+#standard-form > label, #standard-form > div, #standard-form > button { margin-top: 6px; }
+.queue { margin-top: 10px; }
+progress { width: 100%; }
+.table-wrap { overflow: auto; max-height: 300px; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+td, th { padding: 5px 7px; vertical-align: top; border-bottom: 1px solid #e6ede8; overflow-wrap: anywhere; }
+dialog { border: 1px solid #8ab7a0; border-radius: 14px; color: inherit; width: min(510px, calc(100% - 36px)); padding: 18px; }
+dialog::backdrop { background: #102b2390; }
+dialog .actions { margin-top: 12px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; padding: 0; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 760px) { .workspace { grid-template-columns: 1fr; } }
+@media (max-width: 470px) { .credentials, .fields { grid-template-columns: 1fr; } }

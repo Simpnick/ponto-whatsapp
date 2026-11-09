@@ -1,6 +1,6 @@
 # Ponto para WhatsApp Web
 
-Extensão Chrome com código-fonte legível para importar contatos, personalizar texto e enviar anexos em sequência. É uma reimplementação do fluxo principal do modo WhatsApp Web do ZIP ZDG. O código próprio usa a licença [MIT](LICENSE). A integração usa [WPPConnect WA-JS 4.7.2](https://github.com/wppconnect-team/wa-js/releases/tag/v4.7.2), distribuído sob Apache 2.0 com os avisos da biblioteca incluídos na compilação.
+Extensão Chrome com código-fonte legível para preparar e acompanhar mensagens e ligações. O Ponto reimplementa os fluxos operacionais dos três modos do ZIP ZDG. O código próprio usa a licença [MIT](LICENSE). O modo Web usa [WPPConnect WA-JS 4.7.2](https://github.com/wppconnect-team/wa-js/releases/tag/v4.7.2), distribuído sob Apache 2.0.
 
 ## Instalação local
 
@@ -14,6 +14,8 @@ npm.cmd test
 
 No Chrome 140 ou mais recente, acesse `chrome://extensions`, ative **Modo do desenvolvedor**, clique em **Carregar sem compactação** e selecione `dist`. Entre no WhatsApp Web e clique no ícone **Ponto para WhatsApp Web** na barra de extensões. Se já houver outro WA-JS ativo na página, desative a outra extensão e recarregue a aba. [Instalação de extensões locais no Chrome](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked).
 
+Para atualizar uma instalação local, gere `dist` novamente, clique em **Recarregar** no cartão da extensão em `chrome://extensions` e recarregue o WhatsApp Web.
+
 ## Contatos e anexos
 
 Cole um telefone internacional por linha ou importe um CSV em UTF-8. São aceitos vírgula, ponto e vírgula e tabulação. As colunas abaixo permitem personalizar a mensagem e as legendas com `[nome]`, `[telefone]` e `[field3]`. Substitua o telefone do exemplo pelo número autorizado antes de enviar.
@@ -25,7 +27,26 @@ Ana;+55 11 90000-0000;Recife
 
 Escolha vários arquivos no seletor ou arraste-os ao painel. O Ponto não impõe um número máximo de anexos. Cada arquivo vira uma mensagem separada na ordem em que entrou na fila. Os limites de formato e tamanho do WhatsApp Web e da biblioteca se aplicam. [Código de envio de mídia do WA-JS](https://github.com/wppconnect-team/wa-js/blob/v4.7.2/src/chat/functions/sendFileMessage.ts).
 
-Em **Revisar envio**, confira o total e autorize o início. A fila registra a confirmação do WhatsApp por item. A pausa aguarda um envio já iniciado e permite retomar a partir do próximo item. Se o envio falhar ou a confirmação for ambígua, a fila para. Confira a conversa antes de iniciar outro lote. O rascunho e o progresso ficam na memória da aba até ela fechar ou recarregar.
+Em **Revisar envio**, confira o total e autorize o início. A fila registra a confirmação do WhatsApp por item. A pausa aguarda um envio já iniciado e permite retomar a partir do próximo item. Por padrão, uma falha ou confirmação ambígua interrompe a fila. Confira a conversa antes de iniciar outro lote. O rascunho e o progresso ficam na memória da aba até ela fechar ou recarregar.
+
+## Modos e recursos
+
+### WhatsApp Web
+
+- Importe ou exporte conversas, agenda, grupos, participantes e etiquetas disponíveis na conta. Há filtros para contatos não salvos e conversas com recebimento nas últimas 24 horas. A verificação permite baixar um CSV, aplicar correções confirmadas pelo WhatsApp e remover os números consultados que não foram encontrados.
+- Use campos como `[nome]`, `[number]`, `[field3]` ou o título de uma coluna do CSV, por exemplo `[cidade]`. Use `@g.us` para identificar grupos. IDs de grupos antigos em formato numérico também são reconhecidos no modo Web.
+- O painel inclui cartões de contato, localização, enquetes para grupos, listas interativas, chave Pix, eventos e convites de grupo. A disponibilidade de cada formato depende da versão do WhatsApp Web e da conta. [Referência de mensagens do WA-JS](https://wppconnect.io/wa-js/modules/chat.html).
+- Configure o intervalo entre destinatários e escolha se a fila deve continuar após uma falha. A opção de continuar pula o item com falha e mantém seu resultado no CSV.
+
+### API oficial da Meta
+
+Abra **API oficial** no cabeçalho do Ponto. No painel do aplicativo Meta, localize o token da Graph API e o ID da conta WABA. A gestão da conta e o envio requerem as permissões `whatsapp_business_management` e `whatsapp_business_messaging`. A extensão pede acesso ao host da Graph API quando você conecta. Você pode consultar conta e números, pesquisar, criar, editar e excluir templates, enviar templates aprovados ou texto e arquivos, consultar analytics e baixar resultados. As regras da Meta para janela de atendimento, mídia, permissões e aprovação de templates se aplicam. [Documentação da API do WhatsApp Business](https://www.postman.com/meta/whatsapp-business-platform/collection/wlk6lh4/whatsapp-cloud-api).
+
+O token é usado em memória na aba da extensão e é limpo ao desconectar. O fluxo de login, assinatura e mudança de senha do ZDG era vinculado à infraestrutura daquele produto. No Ponto, a conta e as credenciais vêm diretamente da Meta.
+
+### Ligações WaVoIP
+
+Abra **Ligações WaVoIP** no cabeçalho e informe seus tokens de dispositivo. Você pode consultar o estado dos dispositivos, parear por QR, reiniciar a conexão, preparar uma fila com vários dispositivos, usar áudio gravado ou silêncio, pausar, encerrar e baixar o relatório. As permissões e a disponibilidade de chamadas dependem da conta WaVoIP. A aba da extensão usa um fluxo de áudio local por chamada. [SDK oficial WaVoIP](https://github.com/WaVoIP/wavoip-api).
 
 O WA-JS depende de interfaces internas do WhatsApp Web e pode perder compatibilidade após atualizações. A orientação do WhatsApp restringe mensagens automatizadas e em massa. [Uso responsável do WhatsApp](https://faq.whatsapp.com/361005896189245).
 
@@ -45,8 +66,10 @@ O teto de anexos do ZIP era **um arquivo** no modo WhatsApp Web. O seletor não 
 
 ### Controles da reimplementação
 
-O Ponto usa `activeTab` e `scripting`, ativa o painel no domínio exato após ação do usuário e mantém a CSP da página. A interface roda em contexto isolado, exibe os dados importados como texto e chama a biblioteca local em contexto de página apenas para o envio autorizado. A biblioteca tem telemetria e prévias externas desativadas na configuração. Por operar no contexto do WhatsApp Web, o envio confia nessa página e na dependência fixada. [Permissão `activeTab`](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab).
+O Ponto usa `activeTab` e `scripting`, ativa o painel no domínio exato após ação do usuário e mantém a CSP da página. A interface roda em contexto isolado e exibe os dados importados como texto. A biblioteca local opera no contexto do WhatsApp Web para ações solicitadas no painel, com telemetria e prévias externas desativadas. O modo Web confia nessa página e na dependência fixada. [Permissão `activeTab`](https://developer.chrome.com/docs/extensions/develop/concepts/activeTab).
+
+As abas da Meta e do WaVoIP pertencem à extensão. Elas pedem permissões de rede separadas, guardam credenciais em memória e consultam a lista de conversas da aba de origem somente quando você solicita a importação. O SDK WaVoIP é fixado em versão e o build empacota os processadores de áudio localmente. A permissão de WebAssembly da extensão atende ao processador de áudio do SDK. O áudio gravado e o silêncio são gerados na própria aba de ligações.
 
 ### Verificação
 
-Testes automatizados cobrem importação, personalização, fila de 25 arquivos, pausa e parada após erro. O pacote foi carregado em Chromium. A integração da interface foi exercitada com transporte simulado, CSP estrita e transferência de um arquivo em mais de um bloco. Falta validar o envio com uma sessão real autenticada.
+Os testes automatizados cobrem importação, personalização, fila, formatos especiais, requisições à Meta e estados de chamada. No Chromium, o modo Web processou 25 arquivos, a API oficial processou 22 anexos e o SDK WaVoIP reproduziu áudio gravado e encerrou a chamada. Os testes de integração usaram provedores simulados. A operação com contas reais autorizadas ainda precisa de validação.

@@ -7,12 +7,14 @@ const { parseContacts, personalize, runQueue } = globalThis.PontoWorkflow;
 test('imports quoted CSV, reports source lines and deduplicates international numbers', () => {
   const result = parseContacts('\uFEFF\n"Nome";"Telefone";Cidade\r\n"Ana; Lima";+55 (11) 90000-0000;São Paulo\r\nOutra;5511900000000;\r\nInválido;abc;');
   assert.deepEqual(result, {
-    contacts: [{ name: 'Ana; Lima', phone: '5511900000000', extra: ['São Paulo'] }],
+    contacts: [{ name: 'Ana; Lima', phone: '5511900000000', extra: ['São Paulo'],
+      fields: { nome: 'Ana; Lima', telefone: '+55 (11) 90000-0000', cidade: 'São Paulo' } }],
     duplicates: 1,
     invalid: [5]
   });
   assert.equal(personalize('Olá, [nome] ([field2]) de [field3].', result.contacts[0]),
     'Olá, Ana; Lima (5511900000000) de São Paulo.');
+  assert.equal(personalize('[number] [cidade] [ausente]', result.contacts[0]), '5511900000000 São Paulo [ausente]');
   assert.throws(() => parseContacts('nome,telefone\n"linha sem fechamento'), /sem fechamento/);
 });
 

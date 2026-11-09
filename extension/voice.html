@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; connect-src https://devices.wavoip.com wss:; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Ligações WaVoIP · Ponto</title>
+  <link rel="stylesheet" href="voice.css">
+  <script src="workflow.js" defer></script>
+  <script src="voice.js" type="module"></script>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <span class="eyebrow">PONTO / WAVOIP</span>
+      <h1>Central de ligações</h1>
+      <p>Conecte seus dispositivos, prepare uma lista e acompanhe cada chamada.</p>
+    </div>
+  </header>
+  <main class="wrap">
+    <div class="grid">
+      <section class="card" aria-labelledby="devices-title">
+        <h2 id="devices-title">Dispositivos</h2>
+        <p>Adicione um token por linha. Para identificar a sessão, escreva <code>nome,token</code>.</p>
+        <form id="device-form" autocomplete="off">
+          <label for="tokens">Tokens WaVoIP</label>
+          <textarea id="tokens" rows="3" autocomplete="off" spellcheck="false" required></textarea>
+          <div class="actions">
+            <button type="submit" class="primary">Conectar dispositivos</button>
+            <a href="https://app.wavoip.com/" target="_blank" rel="noreferrer">Painel WaVoIP</a>
+          </div>
+        </form>
+        <p class="hint">Os tokens ficam na memória desta aba e são enviados ao WaVoIP para conectar os dispositivos.</p>
+        <p id="device-status" role="status" class="notice">Adicione um dispositivo para começar.</p>
+        <ul id="devices" aria-label="Dispositivos configurados"></ul>
+      </section>
+      <section class="card" aria-labelledby="calls-title">
+        <h2 id="calls-title">Lote de ligações</h2>
+        <form id="call-form">
+          <fieldset id="call-draft">
+            <legend class="sr-only">Configuração do lote</legend>
+            <label for="contacts">Contatos</label>
+            <textarea id="contacts" rows="5" placeholder="nome;telefone&#10;Ana;+55 11 90000-0000" required></textarea>
+            <div class="actions">
+              <button id="pick-csv" type="button">Importar CSV</button>
+              <input id="contact-file" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values" hidden>
+              <button id="from-chats" type="button">Importar conversas</button>
+            </div>
+            <p id="contact-count" class="hint"></p>
+            <label for="recording">Áudio para reproduzir ao atender</label>
+            <input id="recording" type="file" accept="audio/*,.mp3,.ogg,.wav">
+            <p class="hint">A ligação usa silêncio até a pessoa atender. Selecione um arquivo para reproduzir nessa hora.</p>
+            <label class="check"><input id="auto-end" type="checkbox" checked> Desligar ao terminar o áudio</label>
+            <div class="numbers">
+              <label>Tempo de toque (s)<input id="ring" type="number" min="1" max="999" value="45" required></label>
+              <label>Intervalo mín. (s)<input id="min-delay" type="number" min="0" max="999" value="5" required></label>
+              <label>Intervalo máx. (s)<input id="max-delay" type="number" min="0" max="999" value="15" required></label>
+            </div>
+            <label class="check consent"><input id="consent" type="checkbox" required> Os contatos autorizaram estas ligações.</label>
+            <button id="start" type="submit" class="primary">Iniciar ligações</button>
+          </fieldset>
+        </form>
+        <div id="run-actions" class="actions" hidden>
+          <button id="pause" type="button">Pausar após esta ligação</button>
+          <button id="stop" type="button" class="danger">Parar lote</button>
+        </div>
+        <progress id="progress" aria-label="Contatos processados" hidden></progress>
+        <p id="call-status" role="status" class="notice">Conecte um dispositivo e confira os contatos.</p>
+      </section>
+    </div>
+    <section class="card" aria-labelledby="log-title">
+      <div class="section-heading">
+        <h2 id="log-title">Histórico desta aba</h2>
+        <div class="actions">
+          <button id="export" type="button" disabled>Baixar CSV</button>
+          <button id="clear-log" type="button" disabled>Limpar histórico</button>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Contato</th><th>Telefone</th><th>Dispositivo</th><th>Resultado</th><th>Duração</th></tr></thead>
+          <tbody id="log"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <dialog id="qr-dialog" aria-labelledby="qr-title">
+    <h2 id="qr-title">Parear dispositivo</h2>
+    <p>No WhatsApp do celular, abra <strong>Aparelhos conectados</strong> e leia o código.</p>
+    <canvas id="qr-canvas" role="img" aria-label="Código QR de pareamento" hidden></canvas>
+    <p id="qr-status" role="status"></p>
+    <button id="close-qr" type="button">Fechar</button>
+  </dialog>
+</body>
+</html>

@@ -4,13 +4,15 @@
   let upload;
   let expiry;
   let sending = false;
+  const richAdapter = globalThis.PontoRichAdapter;
+  const contactsAdapter = globalThis.PontoContactsAdapter;
 
   function discard() {
     clearTimeout(expiry);
     upload = undefined;
   }
 
-  async function prepare() {
+  async function prepare(richKinds) {
     if (!wpp?.loader?.onReady) return 'adapter';
     const ready = await new Promise((resolve) => {
       const timeout = setTimeout(() => resolve(false), 15000);
@@ -24,27 +26,36 @@
       return 'adapter';
     }
     if (!wpp.conn.isAuthenticated()) return 'login';
+    if (Array.isArray(richKinds) && richKinds.some((kind) => !richAdapter?.supports(wpp.chat, kind))) {
+      return 'unsupported';
+    }
     return 'ok';
   }
 
   async function send(request, file) {
     if (!wpp.conn.isAuthenticated()) return { ok: false, reason: 'login' };
-    if (!/^[1-9]\d{7,14}$/.test(request.phone)) return { ok: false, reason: 'recipient' };
+    const group = /^\d{8,24}(?:-\d{4,16})?@g\.us$/.test(request.phone);
+    if (!group && !/^[1-9]\d{7,14}$/.test(request.phone)) return { ok: false, reason: 'recipient' };
+    if (request.operation === 'rich' && !richAdapter?.supports(wpp.chat, request.kind)) {
+      return { ok: false, reason: 'unsupported' };
+    }
     if (sending) return { ok: false, reason: 'busy' };
 
-    const chatId = `${request.phone}@c.us`;
+    const chatId = group ? request.phone : `${request.phone}@c.us`;
     sending = true;
     // If the acknowledgement times out, the send may still finish in WhatsApp.
     // Keep the lock until the underlying operation settles and never replay it.
     const pending = Promise.resolve().then(async () => {
-      const result = file
-        ? await wpp.chat.sendFileMessage(chatId, file, {
-            ...options,
-            type: request.asDocument ? 'document' : 'auto-detect',
-            filename: file.name,
-            caption: request.caption
-          })
-        : await wpp.chat.sendTextMessage(chatId, request.text, { ...options, linkPreview: false });
+      let result;
+      if (file) {
+        result = await wpp.chat.sendFileMessage(chatId, file, {
+          ...options, type: request.asDocument ? 'document' : 'auto-detect', filename: file.name, caption: request.caption
+        });
+      } else if (request.operation === 'rich') {
+        result = await richAdapter.send(wpp.chat, chatId, request.kind, request.data, options);
+      } else {
+        result = await wpp.chat.sendTextMessage(chatId, request.text, { ...options, linkPreview: false });
+      }
       return result?.id && Number(result.ack) >= 1
         ? { ok: true }
         : { ok: false, reason: 'unconfirmed' };
@@ -64,10 +75,24 @@
 
   globalThis.__pontoTransport = async (request) => {
     if (request.operation === 'prepare') {
-      const reason = await prepare();
+      const reason = await prepare(request.richKinds);
       return { ok: reason === 'ok', reason };
     }
-    if (request.operation === 'text') return send(request);
+    if (request.operation === 'text' || request.operation === 'rich') return send(request);
+    if (['contactSources', 'contactRead', 'contactCheck'].includes(request.operation)) {
+      if (!wpp.conn.isAuthenticated()) return { ok: false, reason: 'login' };
+      return contactsAdapter(wpp, request);
+    }
+    if (request.operation === 'groupInviteCode') {
+      if (!wpp.conn.isAuthenticated()) return { ok: false, reason: 'login' };
+      if (!/^\d{8,24}(?:-\d{4,16})?@g\.us$/.test(request.groupId)) return { ok: false, reason: 'recipient' };
+      try {
+        const code = await wpp.group.getInviteCode(request.groupId);
+        return typeof code === 'string' && code ? { ok: true, data: code } : { ok: false, reason: 'invite' };
+      } catch {
+        return { ok: false, reason: 'invite' };
+      }
+    }
     if (request.operation === 'begin') {
       if (upload || !Number.isSafeInteger(request.size) || request.size <= 0) {
         return { ok: false, reason: 'file' };

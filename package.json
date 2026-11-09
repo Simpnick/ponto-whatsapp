@@ -1,6 +1,6 @@
 {
   "name": "ponto-whatsapp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -9,6 +9,11 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@wppconnect/wa-js": "4.7.2"
+    "@wavoip/wavoip-api": "2.7.0",
+    "@wppconnect/wa-js": "4.7.2",
+    "qrcode-generator": "2.0.4"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
   }
 }
