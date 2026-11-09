@@ -2,7 +2,15 @@
 
 Extensão Chrome com código-fonte legível para preparar e acompanhar mensagens e ligações. O Ponto reimplementa os fluxos operacionais dos três modos do ZIP ZDG. O código próprio usa a licença [MIT](LICENSE). O modo Web usa [WPPConnect WA-JS 4.7.2](https://github.com/wppconnect-team/wa-js/releases/tag/v4.7.2), distribuído sob Apache 2.0.
 
-## Instalação local
+## Instalador para Windows
+
+1. Com o Chrome 140 ou mais recente instalado, baixe e execute o [Instalador do Ponto](https://github.com/Simpnick/ponto-whatsapp/releases/latest/download/Ponto-Instalador-Windows.exe). Ele inclui a extensão compilada, prepara a pasta `%LOCALAPPDATA%\Ponto\ChromeExtension` e abre `chrome://extensions`.
+2. Na primeira instalação, use **Copiar pasta** no instalador. No Chrome, ative **Modo do desenvolvedor**, clique em **Carregar sem compactação** e cole a pasta. Abra o WhatsApp Web e clique no ícone do Ponto.
+3. Para atualizar uma extensão já carregada dessa pasta, execute o instalador da versão nova e clique em **Recarregar** no cartão do Ponto. Depois, recarregue o WhatsApp Web.
+
+A instalação direta pelo Chrome em Windows é oferecida pela Chrome Web Store. O instalador do Ponto usa o fluxo de extensão local. O executável é distribuído sem assinatura Authenticode e o SHA-256 está nos arquivos da versão. [Distribuição de extensões no Chrome](https://developer.chrome.com/docs/extensions/how-to/distribute). [Arquivos da versão](https://github.com/Simpnick/ponto-whatsapp/releases/latest).
+
+## Instalação local a partir do código
 
 Com Node.js instalado, execute na raiz do projeto para reconstruir a pasta `dist`.
 
@@ -15,6 +23,8 @@ npm.cmd test
 No Chrome 140 ou mais recente, acesse `chrome://extensions`, ative **Modo do desenvolvedor**, clique em **Carregar sem compactação** e selecione `dist`. Entre no WhatsApp Web e clique no ícone **Ponto para WhatsApp Web** na barra de extensões. Se já houver outro WA-JS ativo na página, desative a outra extensão e recarregue a aba. [Instalação de extensões locais no Chrome](https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world#load-unpacked).
 
 Para atualizar uma instalação local, gere `dist` novamente, clique em **Recarregar** no cartão da extensão em `chrome://extensions` e recarregue o WhatsApp Web.
+
+Para gerar o instalador a partir de `dist` no Windows, execute `./scripts/build-windows-installer.ps1`. O executável e o SHA-256 são gerados em `release`.
 
 ## Contatos e anexos
 
